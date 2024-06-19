@@ -1,8 +1,8 @@
 import provider from './lib/web3util'
 import escrowAbi from './artifacts/contracts/Escrow.sol/Escrow.json'
-import { updateContract } from './lib/storage'
-import { useEffect, useState } from 'react'
-import { ethers } from 'ethers'
+import { useContext, useState } from 'react'
+import { ethers, utils } from 'ethers'
+import { Context } from './components/State'
 
 /**
  * @param {ethers.Contract} escrowContract
@@ -34,29 +34,27 @@ export default function Escrow({
 }) {
   const [isApproved, setIsApproved] = useState(approved)
 
+  const ctx = useContext(Context)
+
   async function handleApprove(address) {
-    if (escrowAbi?.abi && provider) {
-      console.log(`Escrow: ${address}`)
-      const escrowContract = new ethers.Contract(
-        address,
-        escrowAbi.abi,
-        provider,
-      )
-      const blockTag = 0 //'latest' //await provider.getBlockNumber()
-      console.log(`Current block: ${blockTag}`)
-      const approvalCheck = await escrowContract.isApproved({ blockTag })
-      console.log(`Approval: ${approvalCheck}`)
+    const accounts = await provider.send('eth_requestAccounts', [])
+    console.log(accounts)
 
-      if (!approvalCheck) {
-        escrowContract.on('Approved', () => {
-          document.getElementById(address).className = 'complete'
-          document.getElementById(address).innerText = "✓ It's been approved!"
-        })
+    console.log(`Escrow: ${address}`)
+    const escrowContract = new ethers.Contract(address, escrowAbi.abi, provider)
+    const blockTag = 0 //'latest' //await provider.getBlockNumber()
+    console.log(`Current block: ${blockTag}`)
+    const approvalCheck = await escrowContract.isApproved({ blockTag })
+    console.log(`Approval: ${approvalCheck}`)
 
-        await approve(escrowContract, signer)
-        updateContract(address, true)
-        setIsApproved(true)
-      }
+    if (!approvalCheck) {
+      escrowContract.on('Approved', () => {
+        document.getElementById(address).className = 'complete'
+        document.getElementById(address).innerText = "✓ It's been approved!"
+      })
+
+      await approve(escrowContract, signer)
+      setIsApproved(true)
     }
   }
 
@@ -64,19 +62,20 @@ export default function Escrow({
     <div className="existing-contract">
       <ul className="fields">
         <li>
-          <div>{address}</div>
+          <div>Contract address:</div>
+          <div className="address">{address}</div>
         </li>
         <li>
           <div> Arbiter </div>
-          <div> {arbiter} </div>
+          <div className="address"> {arbiter} </div>
         </li>
         <li>
           <div> Beneficiary </div>
-          <div> {beneficiary} </div>
+          <div className="address"> {beneficiary} </div>
         </li>
         <li>
           <div> Value </div>
-          <div> {value} </div>
+          <div> {utils.formatEther(value, 'wei').toString()} ETH</div>
         </li>
 
         {!isApproved && (
@@ -86,7 +85,9 @@ export default function Escrow({
             onClick={(e) => {
               e.preventDefault()
 
-              handleApprove(address)
+              ctx.dispatch({ type: 'ACTION', payload: 'ciao' })
+
+              // handleApprove(address)
             }}
           >
             Approve

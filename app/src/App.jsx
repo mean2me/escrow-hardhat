@@ -1,46 +1,43 @@
 import { ethers, utils } from 'ethers'
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import deploy from './deploy'
 import Escrow from './Escrow'
 import debounce from 'debounce'
-import { getContracts, saveContract } from './lib/storage'
+import { db } from './lib/storage'
+import { Context, State } from './components/State'
+import { Navbar } from './components/Navbar'
 import provider from './lib/web3util'
 
 function App() {
+  const ctx = useContext(Context)
   const [escrows, setEscrows] = useState([])
-  const [account, setAccount] = useState()
-  const [signer, setSigner] = useState()
 
   const [wei, setWei] = useState(0)
   const [beneficiary, setBeneficiary] = useState(0)
   const [arbiter, setArbiter] = useState(0)
 
   useEffect(() => {
-    async function getAccounts() {
-      const accounts = await provider.send('eth_requestAccounts', [])
-
-      setAccount(accounts[0])
-      setSigner(provider.getSigner())
+    if (ctx.account) {
+      db.list(null, ctx.account, null).then((escrows) => setEscrows(escrows))
     }
-
-    getAccounts()
-    setEscrows(getContracts())
-  }, [account])
+  }, [ctx])
 
   async function newContract() {
-    const value = ethers.BigNumber.from(utils.parseEther(wei))
-    const escrowContract = await deploy(signer, arbiter, beneficiary, value)
-
-    const escrow = {
-      address: escrowContract.address,
-      arbiter,
-      beneficiary,
-      value: value.toString(),
+    if (ctx.account) {
+      const value = ethers.BigNumber.from(utils.parseEther(wei))
+      const signer = provider.getSigner(ctx.account)
+      const escrowContract = await deploy(signer, arbiter, beneficiary, value)
+      const escrow = {
+        address: escrowContract.address,
+        arbiter,
+        beneficiary,
+        value: value.toString(),
+      }
+      await db.saveEscrow({
+        ...escrow,
+        payer: ctx.account,
+      })
     }
-
-    saveContract(escrow)
-
-    setEscrows(getContracts())
   }
 
   const changeHandler = debounce((value, callback) => {
@@ -49,6 +46,7 @@ function App() {
 
   return (
     <>
+      <Navbar />
       <div className="contract">
         <h1> New Contract </h1>
         <label>

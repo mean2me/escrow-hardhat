@@ -1,7 +1,23 @@
+:root {
+  --bg-color: #f0f0f0;
+  --address-color: #0022ff;
+  --grey-100: #e0e0e0;
+}
+
 body {
   background-color: #eee;
   display: flex;
-  font-family: 'Muli', sans-serif;
+  font-family: 'Roboto Mono', monospace;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.roboto-mono-escrow {
+  font-family: 'Roboto Mono', monospace;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
 }
 
 .contract,
@@ -69,4 +85,15 @@ input[type='text'] {
 .existing-contract .complete {
   color: #5aa75a;
   text-align: center;
+}
+
+.address {
+  font-weight: 500;
+  font-size: x-small;
+  color: var(--address-color);
+  display: flex;
+  border: 1px solid var(--grey-100);
+  padding: 0.2rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
 }

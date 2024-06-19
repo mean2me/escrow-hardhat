@@ -16,6 +16,7 @@ module.exports = {
     //   accounts: [`${process.env.TESTNET_PRIVATE_KEY}`],
     // },
     hardhat: {
+      chainId: 1337,
       mining: {
         auto: true,
         interval: 5000, // Mine a block every 5 seconds
