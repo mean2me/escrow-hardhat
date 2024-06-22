@@ -7,10 +7,20 @@ import { db } from './lib/storage'
 import { Context, State } from './components/State'
 import { Navbar } from './components/Navbar'
 import provider from './lib/web3util'
+import {
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
+  ChakraProvider,
+  Box,
+} from '@chakra-ui/react'
 
 function App() {
   const ctx = useContext(Context)
   const [escrows, setEscrows] = useState([])
+  const [tab, setTab] = useState('tab-1')
 
   const [wei, setWei] = useState(0)
   const [beneficiary, setBeneficiary] = useState(0)
@@ -19,8 +29,26 @@ function App() {
   useEffect(() => {
     if (ctx.account) {
       db.list(null, ctx.account, null).then((escrows) => setEscrows(escrows))
+      switch (tab) {
+        default:
+        case 'tab-1':
+          db.list(null, ctx.account, null).then((escrows) =>
+            setEscrows(escrows),
+          )
+          break
+        case 'tab-2':
+          db.list(ctx.account, null, null).then((escrows) =>
+            setEscrows(escrows),
+          )
+          break
+        case 'tab-3':
+          db.list(null, null, ctx.account).then((escrows) =>
+            setEscrows(escrows),
+          )
+          break
+      }
     }
-  }, [ctx])
+  }, [ctx.account, tab])
 
   async function newContract() {
     if (ctx.account) {
@@ -45,73 +73,105 @@ function App() {
   }, 100)
 
   return (
-    <>
+    <ChakraProvider>
       <Navbar />
-      <div className="contract">
-        <h1> New Contract </h1>
-        <label>
-          Arbiter Address
-          <input
-            type="text"
-            id="arbiter"
-            value={arbiter}
-            onChange={(e) => {
+
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'flex-start',
+          alignItems: 'flex-start',
+          m: 0,
+          p: 0,
+        }}
+      >
+        <Box className="contract">
+          <h1> New Contract </h1>
+          <label>
+            Arbiter Address
+            <input
+              type="text"
+              id="arbiter"
+              value={arbiter}
+              onChange={(e) => {
+                e.preventDefault()
+                changeHandler(e.target.value, setArbiter)
+              }}
+            />
+          </label>
+
+          <label>
+            Beneficiary Address
+            <input
+              type="text"
+              id="beneficiary"
+              value={beneficiary}
+              onChange={(e) => {
+                e.preventDefault()
+                changeHandler(e.target.value, setBeneficiary)
+              }}
+            />
+          </label>
+
+          <label>
+            Deposit Amount (ETH)
+            <input
+              type="number"
+              id="wei"
+              value={wei}
+              min={0}
+              onChange={(e) => {
+                e.preventDefault()
+                changeHandler(e.target.value, setWei)
+              }}
+            />
+          </label>
+
+          <div
+            className="button"
+            id="deploy"
+            onClick={(e) => {
               e.preventDefault()
-              changeHandler(e.target.value, setArbiter)
+
+              newContract()
             }}
-          />
-        </label>
+          >
+            Deploy
+          </div>
+        </Box>
 
-        <label>
-          Beneficiary Address
-          <input
-            type="text"
-            id="beneficiary"
-            value={beneficiary}
-            onChange={(e) => {
-              e.preventDefault()
-              changeHandler(e.target.value, setBeneficiary)
-            }}
-          />
-        </label>
+        <Box w="full">
+          <h1> Existing Contracts </h1>
 
-        <label>
-          Deposit Amount (ETH)
-          <input
-            type="number"
-            id="wei"
-            value={wei}
-            min={0}
-            onChange={(e) => {
-              e.preventDefault()
-              changeHandler(e.target.value, setWei)
-            }}
-          />
-        </label>
-
-        <div
-          className="button"
-          id="deploy"
-          onClick={(e) => {
-            e.preventDefault()
-
-            newContract()
-          }}
-        >
-          Deploy
-        </div>
-      </div>
-
-      <div className="existing-contracts">
-        <h1> Existing Contracts </h1>
-
-        <div id="container">
-          {escrows.map((escrow) => {
-            return <Escrow key={escrow.address} {...escrow} />
-          })}
-        </div>
-      </div>
-    </>
+          <Box w="100%">
+            <Tabs variant="soft-rounded">
+              <TabList>
+                <Tab onClick={() => setTab('tab-1')}>To be approved</Tab>
+                <Tab onClick={() => setTab('tab-2')}>Sent</Tab>
+                <Tab onClick={() => setTab('tab-3')}>Received</Tab>
+              </TabList>
+              <TabPanels>
+                <TabPanel id="tab-1">
+                  {escrows.map((escrow) => {
+                    return <Escrow key={escrow.address} {...escrow} />
+                  })}
+                </TabPanel>
+                <TabPanel id="tab-2">
+                  {escrows.map((escrow) => {
+                    return <Escrow key={escrow.address} {...escrow} />
+                  })}
+                </TabPanel>
+                <TabPanel id="tab-3">
+                  {escrows.map((escrow) => {
+                    return <Escrow key={escrow.address} {...escrow} />
+                  })}
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
+          </Box>
+        </Box>
+      </Box>
+    </ChakraProvider>
   )
 }
 

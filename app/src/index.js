@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import reportWebVitals from './reportWebVitals'
 import { State } from './components/State'
+import provider from './lib/web3util'
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
@@ -16,9 +17,7 @@ if (!window.ethereum) {
 } else {
   root.render(
     <React.StrictMode>
-      <State>
-        <App />
-      </State>
+      <State>{provider && <App />}</State>
     </React.StrictMode>,
   )
 }

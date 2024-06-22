@@ -1,4 +1,5 @@
 const path = require('node:path')
+require('solidity-coverage')
 require('dotenv').config({
   path: path.resolve(`${__dirname}/.env`),
   override: true,

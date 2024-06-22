@@ -49,19 +49,6 @@ input[type='text'] {
   font-size: 18px;
 }
 
-.button {
-  background-color: #f58427;
-  color: white;
-  text-align: center;
-  font-weight: bold;
-  text-transform: uppercase;
-  margin: 20px;
-  padding: 9px 25px;
-  font-size: 14px;
-  letter-spacing: 1px;
-  cursor: pointer;
-}
-
 .existing-contract ul {
   padding: 10px;
   margin: 20px;
