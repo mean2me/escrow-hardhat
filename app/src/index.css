@@ -78,9 +78,11 @@ input[type='text'] {
   font-weight: 500;
   font-size: x-small;
   color: var(--address-color);
-  display: flex;
+  display: inline-flex;
   border: 1px solid var(--grey-100);
   padding: 0.2rem;
   border-radius: 0.5rem;
   cursor: pointer;
+  background-color: #f0f0f0;
+  margin: 0.1rem;
 }

@@ -1,12 +1,9 @@
-import { ethers, utils } from 'ethers'
-import { useContext, useEffect, useState } from 'react'
-import deploy from './deploy'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import Escrow from './Escrow'
-import debounce from 'debounce'
 import { db } from './lib/storage'
-import { Context, State } from './components/State'
-import { Navbar } from './components/Navbar'
-import provider from './lib/web3util'
+import { Context } from './components/State'
+import { AppBar } from './components/AppBar'
+
 import {
   Tabs,
   TabList,
@@ -16,66 +13,72 @@ import {
   ChakraProvider,
   Box,
 } from '@chakra-ui/react'
+import provider from './lib/web3util'
+import { EscrowForm } from './components/EscrowForm'
 
 function App() {
   const ctx = useContext(Context)
   const [escrows, setEscrows] = useState([])
-  const [tab, setTab] = useState('tab-1')
+  const signer = useRef(null)
 
-  const [wei, setWei] = useState(0)
-  const [beneficiary, setBeneficiary] = useState(0)
-  const [arbiter, setArbiter] = useState(0)
+  const setTab = (tab) => {
+    ctx.dispatch({ type: 'SET_TAB', payload: tab })
+  }
 
   useEffect(() => {
     if (ctx.account) {
-      db.list(null, ctx.account, null).then((escrows) => setEscrows(escrows))
-      switch (tab) {
-        default:
-        case 'tab-1':
-          db.list(null, ctx.account, null).then((escrows) =>
-            setEscrows(escrows),
-          )
-          break
-        case 'tab-2':
-          db.list(ctx.account, null, null).then((escrows) =>
-            setEscrows(escrows),
-          )
-          break
-        case 'tab-3':
-          db.list(null, null, ctx.account).then((escrows) =>
-            setEscrows(escrows),
-          )
-          break
+      async function fetchEscrows() {
+        let escrows = []
+        switch (ctx.tab) {
+          default:
+          case 'tab-1':
+            escrows = await db.list(null, ctx.account, null)
+            break
+          case 'tab-2':
+            escrows = await db.list(ctx.account, null, null)
+            break
+          case 'tab-3':
+            escrows = await db.list(null, null, ctx.account)
+            break
+        }
+        setEscrows(escrows)
       }
+      fetchEscrows()
     }
-  }, [ctx.account, tab])
+  }, [ctx.account, ctx.tab])
 
-  async function newContract() {
-    if (ctx.account) {
-      const value = ethers.BigNumber.from(utils.parseEther(wei))
-      const signer = provider.getSigner(ctx.account)
-      const escrowContract = await deploy(signer, arbiter, beneficiary, value)
-      const escrow = {
-        address: escrowContract.address,
-        arbiter,
-        beneficiary,
-        value: value.toString(),
-      }
-      await db.saveEscrow({
-        ...escrow,
-        payer: ctx.account,
-      })
+  const initRef = useRef(false)
+  const init = useCallback(async () => {
+    const accounts = await provider.send('eth_requestAccounts', [])
+
+    signer.current = provider.getSigner()
+    if (!signer || !accounts || accounts.length === 0) {
+      ctx.dispatch({ type: 'UPDATE_ACCOUNT', payload: null })
+    } else if (accounts[0] !== ctx.account) {
+      ctx.dispatch({ type: 'UPDATE_ACCOUNT', payload: accounts[0] })
     }
-  }
+  }, [ctx])
 
-  const changeHandler = debounce((value, callback) => {
-    callback(value)
-  }, 100)
+  useEffect(() => {
+    const itv = setInterval(() => {
+      init()
+    }, 500)
+
+    return () => {
+      clearInterval(itv)
+    }
+  }, [ctx.account, init])
+
+  useEffect(() => {
+    if (!initRef.current) {
+      init().then(() => (initRef.current = true))
+    }
+  }, [init])
 
   return (
     <ChakraProvider>
-      <Navbar />
-
+      <AppBar />
+      <EscrowForm />
       <Box
         sx={{
           display: 'flex',
@@ -83,92 +86,57 @@ function App() {
           alignItems: 'flex-start',
           m: 0,
           p: 0,
+          w: '100vw',
+          mt: '4rem',
         }}
       >
-        <Box className="contract">
-          <h1> New Contract </h1>
-          <label>
-            Arbiter Address
-            <input
-              type="text"
-              id="arbiter"
-              value={arbiter}
-              onChange={(e) => {
-                e.preventDefault()
-                changeHandler(e.target.value, setArbiter)
-              }}
-            />
-          </label>
-
-          <label>
-            Beneficiary Address
-            <input
-              type="text"
-              id="beneficiary"
-              value={beneficiary}
-              onChange={(e) => {
-                e.preventDefault()
-                changeHandler(e.target.value, setBeneficiary)
-              }}
-            />
-          </label>
-
-          <label>
-            Deposit Amount (ETH)
-            <input
-              type="number"
-              id="wei"
-              value={wei}
-              min={0}
-              onChange={(e) => {
-                e.preventDefault()
-                changeHandler(e.target.value, setWei)
-              }}
-            />
-          </label>
-
-          <div
-            className="button"
-            id="deploy"
-            onClick={(e) => {
-              e.preventDefault()
-
-              newContract()
-            }}
-          >
-            Deploy
-          </div>
-        </Box>
-
-        <Box w="full">
-          <h1> Existing Contracts </h1>
-
-          <Box w="100%">
-            <Tabs variant="soft-rounded">
-              <TabList>
-                <Tab onClick={() => setTab('tab-1')}>To be approved</Tab>
-                <Tab onClick={() => setTab('tab-2')}>Sent</Tab>
-                <Tab onClick={() => setTab('tab-3')}>Received</Tab>
-              </TabList>
-              <TabPanels>
-                <TabPanel id="tab-1">
-                  {escrows.map((escrow) => {
-                    return <Escrow key={escrow.address} {...escrow} />
+        <Box w="100%">
+          <Tabs variant="soft-rounded">
+            <TabList>
+              <Tab onClick={() => setTab('tab-1')}>To be approved</Tab>
+              <Tab onClick={() => setTab('tab-2')}>Sent</Tab>
+              <Tab onClick={() => setTab('tab-3')}>Received</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel id="tab-1">
+                {provider.ready &&
+                  escrows.map((escrow) => {
+                    return (
+                      <Escrow
+                        key={escrow.address}
+                        provider={provider}
+                        signer={signer.current}
+                        {...escrow}
+                      />
+                    )
                   })}
-                </TabPanel>
-                <TabPanel id="tab-2">
-                  {escrows.map((escrow) => {
-                    return <Escrow key={escrow.address} {...escrow} />
-                  })}
-                </TabPanel>
-                <TabPanel id="tab-3">
-                  {escrows.map((escrow) => {
-                    return <Escrow key={escrow.address} {...escrow} />
-                  })}
-                </TabPanel>
-              </TabPanels>
-            </Tabs>
-          </Box>
+              </TabPanel>
+              <TabPanel id="tab-2">
+                {escrows.map((escrow) => {
+                  return (
+                    <Escrow
+                      key={escrow.address}
+                      {...escrow}
+                      provider={provider}
+                      signer={signer.current}
+                    />
+                  )
+                })}
+              </TabPanel>
+              <TabPanel id="tab-3">
+                {escrows.map((escrow) => {
+                  return (
+                    <Escrow
+                      key={escrow.address}
+                      {...escrow}
+                      provider={provider}
+                      signer={signer.current}
+                    />
+                  )
+                })}
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </Box>
       </Box>
     </ChakraProvider>

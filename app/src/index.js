@@ -15,11 +15,7 @@ if (!window.ethereum) {
     </React.StrictMode>,
   )
 } else {
-  root.render(
-    <React.StrictMode>
-      <State>{provider && <App />}</State>
-    </React.StrictMode>,
-  )
+  root.render(<State>{provider && <App />}</State>)
 }
 
 // If you want to start measuring performance in your app, pass a function

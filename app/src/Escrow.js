@@ -1,9 +1,18 @@
-import provider from './lib/web3util'
 import escrowAbi from './artifacts/contracts/Escrow.sol/Escrow.json'
-import { useContext, useState } from 'react'
+import { useContext } from 'react'
 import { BigNumber, ethers, utils } from 'ethers'
 import { Context } from './components/State'
-import { Button } from '@chakra-ui/react'
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  CardBody,
+  CardFooter,
+  Grid,
+  GridItem,
+} from '@chakra-ui/react'
+import { db } from './lib/storage'
 
 /**
  * @param {ethers.Contract} escrowContract
@@ -21,15 +30,15 @@ export async function approve(escrowContract, signer) {
   }
 }
 
-await provider.send('eth_requestAccounts', [])
-const signer = provider.getSigner()
-
 export default function Escrow({
   address,
   arbiter,
+  payer,
   beneficiary,
   value,
   approved,
+  provider,
+  signer,
 }) {
   const ctx = useContext(Context)
 
@@ -37,54 +46,88 @@ export default function Escrow({
     console.log(`Escrow: ${address}`)
     const escrowContract = new ethers.Contract(address, escrowAbi.abi, provider)
 
-    escrowContract.on('Approved', () => {
-      ctx.dispatch('ESCROW_APPROVE', address)
+    escrowContract.on(escrowContract.filters.Approved(null), () => {
+      ctx.dispatch({ type: 'ESCROW_APPROVE', payload: address })
+      db.saveEscrow({
+        address,
+        arbiter,
+        payer,
+        beneficiary,
+        approved: true,
+      })
     })
 
     await approve(escrowContract, signer)
   }
 
   return (
-    <div className="existing-contract">
-      <ul className="fields">
-        <li>
-          <div>Contract address:</div>
-          <div className="address">{address}</div>
-        </li>
-        <li>
-          <div> Arbiter </div>
-          <div className="address"> {arbiter} </div>
-        </li>
-        <li>
-          <div> Beneficiary </div>
-          <div className="address"> {beneficiary} </div>
-        </li>
-        <li>
-          <div> Value </div>
-          <div> {utils.formatEther(value, 'wei').toString()} ETH</div>
-        </li>
+    <Box
+      bgColor="gray.50"
+      sx={{
+        w: 'full',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Card>
+        <CardBody>
+          <Badge colorScheme="green">Contract address:</Badge>
 
-        {BigNumber.from(ctx.account).eq(BigNumber.from(arbiter)) && (
-          <Button
-            color="orange.500"
-            disabled={ctx.inApproval != null}
-            className="button"
-            id={address}
-            onClick={(e) => {
-              e.preventDefault()
+          <div className="address">
+            <span fontWeight="bold">{address}</span>
+          </div>
 
-              ctx.dispatch({
-                type: 'ESCROW_APPROVE_PROGRESS',
-                payload: address,
-              })
+          <Grid templateColumns="repeat(2, auto)" gap={2} w="fit-content">
+            <GridItem>
+              <Badge colorScheme="blue">Arbiter: </Badge>
+            </GridItem>
+            <GridItem>
+              <span className="address">{arbiter}</span>
+            </GridItem>
+            <GridItem>
+              <Badge colorScheme="blue">Beneficiary: </Badge>
+            </GridItem>
+            <GridItem>
+              <span className="address">{beneficiary}</span>
+            </GridItem>
+          </Grid>
 
-              handleApprove(address)
-            }}
-          >
-            {ctx.inApproval === address ? 'in approval...' : 'Approve'}
-          </Button>
-        )}
-      </ul>
-    </div>
+          <Badge colorScheme="orange" variant="outline">
+            Value: {value ? utils.formatEther(value, 'wei').toString() : '0'}
+            ETH
+          </Badge>
+          <div></div>
+        </CardBody>
+        <CardFooter>
+          {approved && (
+            <Button disabled color="green.200">
+              Approved
+            </Button>
+          )}
+
+          {!approved &&
+            BigNumber.from(ctx.account).eq(BigNumber.from(arbiter)) && (
+              <Button
+                color="orange.500"
+                disabled={ctx.inApproval != null}
+                className="button"
+                id={address}
+                onClick={(e) => {
+                  e.preventDefault()
+
+                  ctx.dispatch({
+                    type: 'ESCROW_APPROVE_PROGRESS',
+                    payload: address,
+                  })
+
+                  handleApprove(address)
+                }}
+              >
+                {ctx.inApproval === address ? 'in approval...' : 'Approve'}
+              </Button>
+            )}
+        </CardFooter>
+      </Card>
+    </Box>
   )
 }

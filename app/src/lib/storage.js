@@ -13,6 +13,7 @@ class EscrowDB {
     }
 
     request.onupgradeneeded = (e) => {
+      db = e.target.result
       const store = db.createObjectStore(OBJECT_STORE, {
         keyPath: 'address',
       })
@@ -47,10 +48,11 @@ class EscrowDB {
   /**
    * @param {string} payer Payer address
    * @param {string} arbiter Arbiter address
+   * @param {string} beneficiary Beneficiary address
    * @param {boolean} approved escrow's status
    * @returns {Promise<Array<{ address:string, arbiter:string, payer:string, beneficiary:string, value:number}>>}
    */
-  async list(payer, arbiter, approved) {
+  async list(payer, arbiter, beneficiary, approved) {
     return new Promise(async (resolve, reject) => {
       try {
         const store = await this.getStore()
@@ -76,7 +78,15 @@ class EscrowDB {
               ) {
                 push = false
               }
-              if (approved !== null && approved !== cursor.value.approved) {
+              if (
+                beneficiary &&
+                !BigNumber.from(beneficiary).eq(
+                  BigNumber.from(cursor.value.beneficiary),
+                )
+              ) {
+                push = false
+              }
+              if (!!approved && approved !== cursor.value.approved) {
                 push = false
               }
               push && escrows.push(cursor.value)
@@ -122,12 +132,17 @@ class EscrowDB {
    */
   async saveEscrow(item) {
     return new Promise(async (resolve, reject) => {
+      const exists = await this.getEscrow(item.address)
       const db = await this.db()
       const tx = db.transaction(OBJECT_STORE, 'readwrite')
       tx.onsuccess = (e) => resolve(true)
       tx.onerror = (e) => reject(e)
       const store = tx.objectStore(OBJECT_STORE)
-      store.add(item)
+      if (exists) {
+        store.put({ ...exists, ...item })
+      } else {
+        store.add(item)
+      }
     })
   }
 }
